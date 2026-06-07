@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  whatsapp-bridge:
+    image: node:20-alpine
+    container_name: whatsapp-bridge
+    working_dir: /app
+    
+    # Clonar repositório e instalar dependências
+    command: >
+      sh -c "
+        git clone --depth 1 --branch main https://github.com/live7-livecommerce/whatsapp-bridge.git . &&
+        npm install &&
+        npm run build &&
+        npm start
+      "
+    
+    ports:
+      - "3001:3001"
+    
+    environment:
+      # Banco de dados
+      DATABASE_URL: ${DATABASE_URL:-mysql://user:password@mysql:3306/whatsapp_bridge}
+      
+      # WhatsApp Meta
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-catarinos_whatsapp_2026}
+      WHATSAPP_APP_SECRET: ${WHATSAPP_APP_SECRET:-781720edeb0ae55572a37576e933b8dd}
+      WHATSAPP_ACCESS_TOKEN: ${WHATSAPP_ACCESS_TOKEN:-}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-1151395758059878}
+      
+      # Core CRM
+      CORE_API_URL: ${CORE_API_URL:-https://catacoreapp.manus.space}
+      CORE_SERVICE_EMAIL: ${CORE_SERVICE_EMAIL:-carlos@verificacao.com}
+      CORE_SERVICE_PASSWORD: ${CORE_SERVICE_PASSWORD:-Verifica@2026}
+      
+      # Aplicação
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3001}
+      
+      # Meta App
+      META_APP_ID: ${META_APP_ID:-1477595246746967}
+      META_APP_SECRET: ${META_APP_SECRET:-781720edeb0ae55572a37576e933b8dd}
+      META_ACCESS_TOKEN: ${META_ACCESS_TOKEN:-}
+    
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Volumes para cache de dependências
+    volumes:
+      - /app/node_modules
+    
+    networks:
+      - whatsapp-network
+
+networks:
+  whatsapp-network:
+    driver: bridge

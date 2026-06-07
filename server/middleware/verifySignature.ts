@@ -17,7 +17,12 @@ export function verifyWebhookSignature(req: Request, res: Response, next: NextFu
     return res.status(401).json({ error: 'Assinatura ausente' });
   }
 
-  const appSecret = process.env.META_APP_SECRET!;
+  const appSecret = process.env.WHATSAPP_APP_SECRET || process.env.META_APP_SECRET;
+  
+  if (!appSecret) {
+    console.error('[Webhook] ERRO: Variável de ambiente WHATSAPP_APP_SECRET não configurada');
+    return res.status(500).json({ error: 'Configuração de servidor inválida' });
+  }
   const payload = JSON.stringify(req.body);
   const expectedSignature = 'sha256=' + crypto
     .createHmac('sha256', appSecret)
