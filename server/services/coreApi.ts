@@ -7,9 +7,13 @@
 
 import axios from 'axios';
 
-const CORE_API_URL = process.env.CORE_API_URL!;
-const CORE_SERVICE_EMAIL = process.env.CORE_SERVICE_EMAIL!;
-const CORE_SERVICE_PASSWORD = process.env.CORE_SERVICE_PASSWORD!;
+const CORE_API_URL = process.env.CORE_API_URL || 'https://catacoreapp.manus.space';
+const CORE_SERVICE_EMAIL = process.env.CORE_SERVICE_EMAIL || 'carlos@verificacao.com';
+const CORE_SERVICE_PASSWORD = process.env.CORE_SERVICE_PASSWORD || '';
+
+if (!CORE_SERVICE_PASSWORD) {
+  console.warn('[CoreAPI] AVISO: CORE_SERVICE_PASSWORD não configurada. Requisições ao Core podem falhar.');
+}
 
 let cachedToken: string | null = null;
 let tokenExpiresAt: number = 0;
@@ -23,15 +27,20 @@ export async function getCoreServiceToken(): Promise<string> {
     return cachedToken;
   }
 
-  const response = await axios.post(`${CORE_API_URL}/api/auth/login`, {
-    email: CORE_SERVICE_EMAIL,
-    password: CORE_SERVICE_PASSWORD,
-  });
+  try {
+    const response = await axios.post(`${CORE_API_URL}/api/auth/login`, {
+      email: CORE_SERVICE_EMAIL,
+      password: CORE_SERVICE_PASSWORD,
+    });
 
-  cachedToken = response.data.token;
-  tokenExpiresAt = now + 23 * 60 * 60 * 1000; // 23 horas
-  console.log('[CoreAPI] Service Account token renovado');
-  return cachedToken!;
+    cachedToken = response.data.token;
+    tokenExpiresAt = now + 23 * 60 * 60 * 1000; // 23 horas
+    console.log('[CoreAPI] Service Account token renovado');
+    return cachedToken!;
+  } catch (error: any) {
+    console.error('[CoreAPI] ERRO ao obter token:', error.response?.status, error.message);
+    throw new Error(`Não conseguiu autenticar no Core CRM: ${error.message}`);
+  }
 }
 
 /**
