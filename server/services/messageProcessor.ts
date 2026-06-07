@@ -29,39 +29,52 @@ interface IncomingMessage {
 export async function processMessage(msg: IncomingMessage): Promise<void> {
   console.log(`[Processor] Processando mensagem ${msg.waMessageId} de ${msg.phoneNumber}`);
 
-  const db = getDb();
-
-  // 1. Verificar idempotência — já processou essa mensagem?
-  const existing = await db.select()
-    .from(whatsappMessagesLog)
-    .where(eq(whatsappMessagesLog.waMessageId, msg.waMessageId))
-    .limit(1);
-
-  if (existing.length > 0 && existing[0].processed) {
-    console.log(`[Processor] Mensagem ${msg.waMessageId} já processada — ignorando`);
+  let db: any;
+  try {
+    db = getDb();
+  } catch (error: any) {
+    console.error(`[Processor] ERRO CRÍTICO: Não conseguiu inicializar banco de dados: ${error.message}`);
     return;
   }
 
-  // 2. Inserir log (ou atualizar se já existe mas não foi processado)
-  let logId: number;
-  if (existing.length > 0) {
-    logId = existing[0].id;
-  } else {
-    const result = await db.insert(whatsappMessagesLog).values({
-      waMessageId: msg.waMessageId,
-      phoneNumber: msg.phoneNumber,
-      contactName: msg.contactName,
-      messageType: msg.messageType,
-      messageBody: msg.messageBody,
-      mediaUrl: msg.mediaUrl,
-      waTimestamp: msg.waTimestamp,
-      phoneNumberId: msg.phoneNumberId,
-    });
-    logId = (result as any).insertId;
+  // 1. Verificar idempotência — já processou essa mensagem?
+  let existing: any[] = [];
+  let logId: number = 0;
+  
+  try {
+    existing = await db.select()
+      .from(whatsappMessagesLog)
+      .where(eq(whatsappMessagesLog.waMessageId, msg.waMessageId))
+      .limit(1);
+
+    if (existing.length > 0 && existing[0].processed) {
+      console.log(`[Processor] Mensagem ${msg.waMessageId} já processada — ignorando`);
+      return;
+    }
+
+    // 2. Inserir ou reutilizar log
+    if (existing.length > 0) {
+      logId = existing[0].id;
+    } else {
+      const result = await db.insert(whatsappMessagesLog).values({
+        waMessageId: msg.waMessageId,
+        phoneNumber: msg.phoneNumber,
+        contactName: msg.contactName,
+        messageType: msg.messageType,
+        messageBody: msg.messageBody,
+        mediaUrl: msg.mediaUrl,
+        waTimestamp: msg.waTimestamp,
+        phoneNumberId: msg.phoneNumberId,
+      });
+      logId = (result as any).insertId;
+    }
+  } catch (error: any) {
+    console.warn(`[Processor] Aviso: Não conseguiu acessar banco de dados local (continuando sem log): ${error.message}`);
+    logId = 0; // Vai continuar sem log
   }
 
   try {
-    // 3. Formatar telefone para busca (remover prefixo 55 se necessário, ou manter padrão do Core)
+    // 3. Formatar telefone para busca
     const telefoneFormatado = formatarTelefone(msg.phoneNumber);
 
     // 4. Buscar lead no Core por telefone
@@ -81,9 +94,13 @@ export async function processMessage(msg: IncomingMessage): Promise<void> {
       leadCreated = true;
 
       // Gravar metadata de origem
-      if (lead.id) {
-        await gravarMetadata(lead.id, 'origem_canal', 'WhatsApp');
-        await gravarMetadata(lead.id, 'primeiro_contato', formatTimestamp(msg.waTimestamp));
+      if (lead && lead.id) {
+        try {
+          await gravarMetadata(lead.id, 'origem_canal', 'WhatsApp');
+          await gravarMetadata(lead.id, 'primeiro_contato', formatTimestamp(msg.waTimestamp));
+        } catch (metaError: any) {
+          console.warn(`[Processor] Aviso: Não conseguiu gravar metadata: ${metaError.message}`);
+        }
       }
     } else {
       // 5b. Lead existe → atualizar notes com a mensagem
@@ -93,27 +110,40 @@ export async function processMessage(msg: IncomingMessage): Promise<void> {
       leadUpdated = true;
     }
 
-    // 6. Atualizar log com sucesso
-    await db.update(whatsappMessagesLog)
-      .set({
-        coreLeadId: lead.id,
-        leadCreated,
-        leadUpdated,
-        processed: true,
-      })
-      .where(eq(whatsappMessagesLog.id, logId));
+    // 6. Atualizar log com sucesso (se logId foi criado)
+    if (logId > 0) {
+      try {
+        await db.update(whatsappMessagesLog)
+          .set({
+            coreLeadId: lead?.id || null,
+            leadCreated,
+            leadUpdated,
+            processed: true,
+          })
+          .where(eq(whatsappMessagesLog.id, logId));
+      } catch (updateError: any) {
+        console.warn(`[Processor] Aviso: Não conseguiu atualizar log com sucesso: ${updateError.message}`);
+      }
+    }
 
-    console.log(`[Processor] Mensagem ${msg.waMessageId} processada com sucesso — Lead ID: ${lead.id}`);
+    console.log(`[Processor] Mensagem ${msg.waMessageId} processada com sucesso — Lead ID: ${lead?.id}`);
 
   } catch (error: any) {
-    // Registrar erro no log
+    // Registrar erro no log (se logId foi criado)
     console.error(`[Processor] Erro ao processar mensagem ${msg.waMessageId}:`, error.message);
-    await db.update(whatsappMessagesLog)
-      .set({
-        errorMessage: error.message || 'Erro desconhecido',
-        processed: false,
-      })
-      .where(eq(whatsappMessagesLog.id, logId));
+    
+    if (logId > 0) {
+      try {
+        await db.update(whatsappMessagesLog)
+          .set({
+            errorMessage: error.message || 'Erro desconhecido',
+            processed: false,
+          })
+          .where(eq(whatsappMessagesLog.id, logId));
+      } catch (updateError: any) {
+        console.warn(`[Processor] Aviso: Não conseguiu registrar erro no log: ${updateError.message}`);
+      }
+    }
   }
 }
 
