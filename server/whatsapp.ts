@@ -5,7 +5,18 @@
 import axios from 'axios';
 
 const WHATSAPP_API_URL = 'https://graph.instagram.com/v25.0';
-const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN || '';
+
+/**
+ * Obter o token de acesso (lê a cada requisição)
+ */
+function getAccessToken(): string {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!token) {
+    console.warn('[WhatsApp] AVISO: WHATSAPP_ACCESS_TOKEN não configurado');
+    return '';
+  }
+  return token;
+}
 
 /**
  * Envia mensagem de texto via WhatsApp
@@ -15,11 +26,15 @@ export async function sendWhatsAppMessage(
   messageText: string,
   phoneNumberId: string
 ): Promise<any> {
-  if (!WHATSAPP_ACCESS_TOKEN) {
+  const token = getAccessToken();
+  
+  if (!token) {
     throw new Error('WHATSAPP_ACCESS_TOKEN não configurado');
   }
 
   try {
+    console.log(`[WhatsApp] Enviando mensagem para ${toPhoneNumber} com token: ${token.substring(0, 20)}...`);
+    
     const response = await axios.post(
       `${WHATSAPP_API_URL}/${phoneNumberId}/messages`,
       {
@@ -32,16 +47,16 @@ export async function sendWhatsAppMessage(
       },
       {
         headers: {
-          Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       }
     );
 
-    console.log(`[WhatsApp] Mensagem enviada com sucesso para ${toPhoneNumber}:`, response.data);
+    console.log(`[WhatsApp] ✅ Mensagem enviada com sucesso para ${toPhoneNumber}:`, response.data);
     return response.data;
   } catch (error: any) {
-    console.error(`[WhatsApp] Erro ao enviar mensagem para ${toPhoneNumber}:`, error.response?.data || error.message);
+    console.error(`[WhatsApp] ❌ Erro ao enviar mensagem para ${toPhoneNumber}:`, error.response?.data || error.message);
     throw error;
   }
 }
@@ -55,11 +70,15 @@ export async function sendWhatsAppTemplate(
   phoneNumberId: string,
   parameters?: any[]
 ): Promise<any> {
-  if (!WHATSAPP_ACCESS_TOKEN) {
+  const token = getAccessToken();
+  
+  if (!token) {
     throw new Error('WHATSAPP_ACCESS_TOKEN não configurado');
   }
 
   try {
+    console.log(`[WhatsApp] Enviando template para ${toPhoneNumber} com token: ${token.substring(0, 20)}...`);
+    
     const response = await axios.post(
       `${WHATSAPP_API_URL}/${phoneNumberId}/messages`,
       {
@@ -76,16 +95,16 @@ export async function sendWhatsAppTemplate(
       },
       {
         headers: {
-          Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       }
     );
 
-    console.log(`[WhatsApp] Template enviado com sucesso para ${toPhoneNumber}:`, response.data);
+    console.log(`[WhatsApp] ✅ Template enviado com sucesso para ${toPhoneNumber}:`, response.data);
     return response.data;
   } catch (error: any) {
-    console.error(`[WhatsApp] Erro ao enviar template para ${toPhoneNumber}:`, error.response?.data || error.message);
+    console.error(`[WhatsApp] ❌ Erro ao enviar template para ${toPhoneNumber}:`, error.response?.data || error.message);
     throw error;
   }
 }
