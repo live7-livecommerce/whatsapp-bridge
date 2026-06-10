@@ -3,18 +3,56 @@
  */
 
 import axios from 'axios';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const WHATSAPP_API_URL = 'https://graph.instagram.com/v25.0';
 
+// Carregar token do arquivo config.json ou variável de ambiente
+let cachedToken: string | null = null;
+
 /**
  * Obter o token de acesso (lê a cada requisição)
+ * Prioridade: config.json > variáveis de ambiente
  */
 function getAccessToken(): string {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  // Se já temos em cache, retorna
+  if (cachedToken) {
+    return cachedToken;
+  }
+  
+  let token = '';
+  
+  // Tentar ler do arquivo config.json
+  try {
+    const configPath = path.join(__dirname, '..', 'config.json');
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      token = config.whatsapp?.accessToken || '';
+      if (token) {
+        console.log('[WhatsApp] Token carregado do arquivo config.json');
+        cachedToken = token;
+        return token;
+      }
+    }
+  } catch (error) {
+    console.warn('[WhatsApp] Erro ao ler config.json:', error);
+  }
+  
+  // Fallback: tentar variáveis de ambiente
+  token = process.env.WHATSAPP_ACCESS_TOKEN || '';
+  const part2 = process.env.WHATSAPP_ACCESS_TOKEN_PART2 || '';
+  
+  if (part2) {
+    token = token + part2;
+  }
+  
   if (!token) {
     console.warn('[WhatsApp] AVISO: WHATSAPP_ACCESS_TOKEN não configurado');
     return '';
   }
+  
+  cachedToken = token;
   return token;
 }
 
