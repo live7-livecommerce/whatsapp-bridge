@@ -4,7 +4,7 @@
   "description": "Microserviço WhatsApp → Core CRM (registro automático de leads)",
   "scripts": {
     "dev": "tsx watch server/index.ts",
-    "build": "tsc",
+    "build": "tsc && cp config.json dist/config.json",
     "start": "node dist/server/index.js",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"
   },
