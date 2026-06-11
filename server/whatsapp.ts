@@ -6,7 +6,7 @@ import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const WHATSAPP_API_URL = 'https://graph.instagram.com/v25.0';
+const WHATSAPP_API_URL = 'https://graph.facebook.com/v25.0';
 
 // Carregar token do arquivo config.json ou variável de ambiente
 let cachedToken: string | null = null;
