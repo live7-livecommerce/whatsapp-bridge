@@ -6,8 +6,26 @@
  */
 
 import { Router, Request, Response } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
 import { verifyWebhookSignature } from '../middleware/verifySignature';
 import { processMessage } from '../services/messageProcessor';
+
+// Carregar verify token do config.json ou variáveis de ambiente
+function getVerifyToken(): string {
+  try {
+    const configPath = path.join(__dirname, '..', '..', 'config.json');
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      if (config.webhook?.verifyToken) {
+        return config.webhook.verifyToken;
+      }
+    }
+  } catch (error) {
+    console.warn('[Webhook] Erro ao ler config.json:', error);
+  }
+  return process.env.WHATSAPP_VERIFY_TOKEN || '';
+}
 
 const router = Router();
 
@@ -21,7 +39,8 @@ router.get('/webhook', (req: Request, res: Response) => {
   const token = req.query['hub.verify_token'] as string;
   const challenge = req.query['hub.challenge'] as string;
 
-  if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
+  const verifyToken = getVerifyToken();
+  if (mode === 'subscribe' && token === verifyToken) {
     console.log('[Webhook] Verificação OK — respondendo challenge');
     return res.status(200).send(challenge);
   }
