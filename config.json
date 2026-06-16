@@ -1,7 +1,7 @@
 {
   "whatsapp": {
-    "phoneNumberId": "1151395758059878",
-    "accessToken": "EAAUZC3XPN3VcBRlXA3mQdUHM4unHyQ4ZCDFUQhb9t8BZA9ajoaqQ82flgZCU7nb9qAynRwb97HZBjTSpNSNjPOUh5oPkjYlF35yre6XygBYtvtoNSZArZBkyZB6LVofSHOaRnOi0MQh9G67wkIwUaYZBZBiMKQnAoAOWKuOah9GOej8wOsZAUmyJ2saUmfJnMEw1yYfUgZDZD"
+    "phoneNumberId": "388032144392355",
+    "accessToken": "EAAUZC3XPN3VcBRpryUWaYyK6YMcs4ZBZBcbpUTW4zJl40q4cZCZCoXv9bHqB4BBlZC6r0Qq55KUFCsGdiBsYkGzV74ftpsxidLkK9fEFAH2GHfK86koqK8qrDZBcxHSUGYjnDCPQy92IzRxgCUORFH3Tpt96ZCZAZCYmZASJOTZATZAZBMwYlW6uiMZC3AjgZCey5sykBQZDZD"
   },
   "webhook": {
     "verifyToken": "whatsapp_webhook_verify_token_2026"
